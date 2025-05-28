@@ -1,14 +1,13 @@
 ﻿using Domain.DTOs.Users;
-using Domain.Filters;
 using Domain.Responses;
 
 namespace Infrastructure.Interfaces;
 
 public interface IUserService
 {
-    Task<Response<GetUserDto>> CreateUserAsync(GetUserDto create);
-    Task<Response<GetUserDto>> UpdateUserAsync(int id, GetUserDto update);
-    Task<Response<string>> DeleteUser(int id);
-    Task<Response<GetUserDto>> GetByIdAsync(int id);
-    Task<PagedResponse<List<GetUserDto>>> GetAllAsync(UserFilter filter);
+    Task<Response<List<GetUserDto>>> GetAllAsync();
+    Task<Response<GetUserDto>> GetByIdAsync(string id);
+    Task<Response<GetUserDto>> CreateAsync(CreateUserDto request);
+    Task<Response<GetUserDto>> UpdateAsync(string id, UpdateUserDto request);
+    Task<Response<string>> DeleteAsync(string id);
 }

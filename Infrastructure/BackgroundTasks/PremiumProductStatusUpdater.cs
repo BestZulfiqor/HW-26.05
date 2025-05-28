@@ -6,28 +6,20 @@ using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.BackgroundTasks;
 
-public class PremiumProductStatusUpdater : BackgroundService
+public class PremiumProductStatusUpdater(
+    IServiceScopeFactory serviceScopeFactory,
+    ILogger<PremiumProductStatusUpdater> logger)
+    : BackgroundService
 {
-    private readonly IServiceScopeFactory _serviceScopeFactory;
-    private readonly ILogger<PremiumProductStatusUpdater> _logger;
-
-    public PremiumProductStatusUpdater(
-        IServiceScopeFactory serviceScopeFactory,
-        ILogger<PremiumProductStatusUpdater> logger)
-    {
-        _serviceScopeFactory = serviceScopeFactory;
-        _logger = logger;
-    }
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Служба проверки Premium статусов запущена");
+        logger.LogInformation("Служба проверки Premium статусов запущена");
 
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                using var scope = _serviceScopeFactory.CreateScope();
+                using var scope = serviceScopeFactory.CreateScope();
                 var dbContext = scope.ServiceProvider.GetRequiredService<DataContext>();
                 
                 var expiredProducts = await dbContext.Products
@@ -41,16 +33,16 @@ public class PremiumProductStatusUpdater : BackgroundService
                     {
                         product.IsPremium = false;
                         product.IsTop = false;
-                        _logger.LogInformation($"Сброшен Premium статус для продукта {product.Id}");
+                        logger.LogInformation($"Сброшен Premium статус для продукта {product.Id}");
                     }
 
                     await dbContext.SaveChangesAsync(stoppingToken);
-                    _logger.LogInformation($"Обновлено {expiredProducts.Count} продуктов");
+                    logger.LogInformation($"Обновлено {expiredProducts.Count} продуктов");
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Ошибка в фоновой службе");
+                logger.LogError(ex, "Ошибка в фоновой службе");
             }
 
             await Task.Delay(TimeSpan.FromHours(12), stoppingToken);

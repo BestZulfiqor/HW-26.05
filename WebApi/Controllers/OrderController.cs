@@ -28,13 +28,13 @@ public class OrderController(IOrderService orderService) : ControllerBase
         return await orderService.CreateOrderAsync(create);
     }
     
-    [HttpPut]
+    [HttpPut("{id:int}")]
     public async Task<Response<GetOrderDto>> UpdateOrderAsync(int id, UpdateOrderDto update)
     {
         return await orderService.UpdateOrderAsync(id, update);
     }
     
-    [HttpDelete]
+    [HttpDelete("{id:int}")]
     public async Task<Response<string>> DeleteOrder(int id)
     {
         return await orderService.DeleteOrder(id);

@@ -1,32 +1,52 @@
 ﻿using System.Net;
 using AutoMapper;
+using Domain.Constants;
 using Domain.DTOs.Categories;
 using Domain.Entities;
 using Domain.Filters;
 using Domain.Responses;
 using Infrastructure.Interfaces;
-using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Services;
 
-public class CategoryService(IBaseRepository<Category, int> categoryRepository, IMapper mapper) : ICategoriesService
+public class CategoryService(
+    IBaseRepository<Category, int> categoryRepository,
+    IMapper mapper,
+    IMemoryCacheService memoryCache,
+    IRedisCacheService redisCache) : ICategoriesService
 {
     public async Task<PagedResponse<List<GetCategoryDto>>> GetAllAsync(CategoryFilter filter)
     {
-        var pageNumber = filter.PageNumber <= 0 ? 1 : filter.PageNumber;
-        var pageSize = filter.PageSize < 10 ? 10 : filter.PageSize;
+        // var categoryInCache = await memoryCache.GetData<List<GetCategoryDto>>(Cache.CategoryCache);
+        var categoryInCache = await redisCache.GetData<List<GetCategoryDto>>(Cache.CategoryCache);
 
-        var query = await categoryRepository.GetAllAsync();
-        var totalRecords = await query.CountAsync();
+        if (categoryInCache == null)
+        {
+            var categories = await categoryRepository.GetAllAsync();
+            categoryInCache = categories.Select(c => new GetCategoryDto
+            {
+                Id = c.Id,
+                Name = c.Name,
+                Description = c.Description,
+            }).ToList();
 
-        var pagedCategories = await query
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
+            // await memoryCache.SetData(Cache.CategoryCache, categoryInCache, 1);
+            await redisCache.SetData(Cache.CategoryCache, categoryInCache, 1);
+        }
 
-        var dtos = mapper.Map<List<GetCategoryDto>>(pagedCategories);
+        if (string.IsNullOrEmpty(filter.Name))
+        {
+            categoryInCache = categoryInCache.Where(n =>
+                n.Name.ToLower().Trim().Contains(filter.Name!.ToLower().Trim())).ToList();
+        }
 
-        return new PagedResponse<List<GetCategoryDto>>(dtos, pageNumber, pageSize, totalRecords);
+        var totalCount = categoryInCache.Count;
+        var paginationData = categoryInCache
+            .Skip(filter.PageSize * (filter.PageNumber - 1))
+            .Take(filter.PageSize)
+            .ToList();
+
+        return new PagedResponse<List<GetCategoryDto>>(paginationData, filter.PageSize, filter.PageNumber, totalCount);
     }
 
     public async Task<Response<GetCategoryDto>> CreateCategoriesAsync(CreateCategoryDto create)
@@ -43,7 +63,10 @@ public class CategoryService(IBaseRepository<Category, int> categoryRepository, 
         {
             return new Response<GetCategoryDto>(HttpStatusCode.BadRequest, "Category not created");
         }
-
+        
+        // await memoryCache.DeleteData(Cache.CategoryCache); 
+        await redisCache.RemoveData(Cache.CategoryCache); 
+        
         var dto = mapper.Map<GetCategoryDto>(category);
         return new Response<GetCategoryDto>(dto);
     }
@@ -63,7 +86,10 @@ public class CategoryService(IBaseRepository<Category, int> categoryRepository, 
         {
             return new Response<GetCategoryDto>(HttpStatusCode.BadRequest, "Category not updated");
         }
-
+        
+        // await memoryCache.DeleteData(Cache.CategoryCache); 
+        await redisCache.RemoveData(Cache.CategoryCache); 
+        
         var dto = mapper.Map<GetCategoryDto>(category);
         return new Response<GetCategoryDto>(dto);
     }
@@ -81,7 +107,8 @@ public class CategoryService(IBaseRepository<Category, int> categoryRepository, 
         {
             return new Response<string>(HttpStatusCode.BadRequest, "Category not deleted");
         }
-
+        // await memoryCache.DeleteData(Cache.CategoryCache); 
+        await redisCache.RemoveData(Cache.CategoryCache); 
         return new Response<string>("Category deleted successfully");
     }
 

@@ -26,5 +26,10 @@ public static class DependencyInjection
         
         // Program.cs
         services.AddHostedService<PremiumProductStatusUpdater>();
+        
+        services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IMemoryCacheService, MemoryCacheService>();
+        services.AddScoped<IRedisCacheService, RedisCacheService>();
     }
 }

@@ -1,7 +1,8 @@
+using Domain.Constants;
+
 namespace Domain.Filters;
 
-public class OrderFilter
+public class OrderFilter : BaseFilter
 {
-    public int PageNumber { get; set; } = 1;
-    public int PageSize { get; set; } = 10;
+    public Status? Status { get; set; }
 }
